@@ -18,22 +18,33 @@ var Analyzer = &analysis.Analyzer{
 const Doc = "nowdet2 is a static analysis tool that detects time.now() in arguments of functions about Spanner."
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	posTimeNow(pass)
+	timeNows := posTimeNow(pass)
+	for _, instr := range timeNows {
+		pass.Reportf(instr.Pos(), "time.Now() should not be used")
+	}
 	return nil, nil
 }
 
-func posTimeNow(pass *analysis.Pass) {
+// posTimeNow returns the instructions that call time.Now()
+func posTimeNow(pass *analysis.Pass) []ssa.Call {
+	timeNows := make([]ssa.Call, 0)
+
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
 	for _, f := range funcs {
 		for _, block := range f.Blocks {
 			for _, instr := range block.Instrs {
 				if call, ok := instr.(*ssa.Call); ok {
-					fnName := call.Call.Value.Name()
-					if fnName == "Now" {
-						pass.Reportf(call.Pos(), "time.Now() should not be used")
+					if fn, ok := call.Call.Value.(*ssa.Function); ok {
+						// Detect time.Now()
+						if fn.Pkg != nil && fn.Pkg.Pkg.Path() == "time" && fn.Name() == "Now" {
+							// Accumulate the variable that have value from time.Now()
+							timeNows = append(timeNows, *call)
+						}
 					}
 				}
 			}
 		}
 	}
+
+	return timeNows
 }
