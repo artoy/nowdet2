@@ -75,6 +75,12 @@ func walkToDetectSpannerFunc(pass *analysis.Pass, instr ssa.Instruction) {
 			}
 		}
 	case *ssa.Phi:
+		// In case of Phi, it is not certain that the value is used in the function but may be used.
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.BinOp:
+		// In case of BinOp, it is not certain that the value is used in the function but may be used.
 		for _, referrer := range *v.Referrers() {
 			walkToDetectSpannerFunc(pass, referrer)
 		}
