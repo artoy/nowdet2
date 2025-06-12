@@ -4,21 +4,18 @@ import (
 	"log"
 	"net/http"
 
-	"server/database"
-	"server/handlers"
-	"server/usecases"
 )
 
 func main() {
-	db, err := database.NewSpannerDB()
+	db, err := NewSpannerDB()
 	if err != nil {
 		log.Fatal("Failed to initialize database:", err)
 	}
 	defer db.Close()
 
-	userUseCase := usecases.NewUserUsecase(db)
+	userUseCase := NewUserUsecase(db)
 
-	h := handlers.NewHandlers(userUseCase)
+	h := NewHandlers(userUseCase)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/users", h.CreateUser)

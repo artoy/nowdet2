@@ -1,18 +1,16 @@
-package handlers
+package main
 
 import (
 	"encoding/json"
 	"net/http"
 
-	"server/models"
-	"server/usecases"
 )
 
 type Handlers struct {
-	userUseCase *usecases.UserUsecase
+	userUseCase *UserUsecase
 }
 
-func NewHandlers(userUseCase *usecases.UserUsecase) *Handlers {
+func NewHandlers(userUseCase *UserUsecase) *Handlers {
 	return &Handlers{userUseCase: userUseCase}
 }
 
@@ -22,7 +20,7 @@ func (h *Handlers) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req models.CreateUserRequest
+	var req CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return

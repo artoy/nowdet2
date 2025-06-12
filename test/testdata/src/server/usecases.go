@@ -1,23 +1,21 @@
-package usecases
+package main
 
 import (
 	"fmt"
 	"time"
 
-	"server/database"
-	"server/models"
 )
 
 type UserUsecase struct {
-	db *database.SpannerDB
+	db *SpannerDB
 }
 
-func NewUserUsecase(db *database.SpannerDB) *UserUsecase {
+func NewUserUsecase(db *SpannerDB) *UserUsecase {
 	return &UserUsecase{db: db}
 }
 
-func (uc *UserUsecase) CreateUser(req models.CreateUserRequest) (*models.User, error) {
-	user := &models.User{
+func (uc *UserUsecase) CreateUser(req CreateUserRequest) (*User, error) {
+	user := &User{
 		ID:        fmt.Sprintf("%d", time.Now().Unix()),
 		Name:      req.Name,
 		Email:     req.Email,

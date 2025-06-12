@@ -1,4 +1,4 @@
-package database
+package main
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"cloud.google.com/go/spanner"
 
-	"server/models"
 )
 
 type SpannerDB struct {
@@ -25,7 +24,7 @@ func (db *SpannerDB) Close() {
 	}
 }
 
-func (db *SpannerDB) CreateUser(user *models.User) error {
+func (db *SpannerDB) CreateUser(user *User) error {
 	mutation := spanner.Insert("users",
 		[]string{"id", "name", "email", "created_at", "updated_at"},
 		[]any{user.ID, user.Name, user.Email, user.CreatedAt, user.UpdatedAt})

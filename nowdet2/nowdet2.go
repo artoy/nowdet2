@@ -84,6 +84,22 @@ func walkToDetectSpannerFunc(pass *analysis.Pass, instr ssa.Instruction) {
 		for _, referrer := range *v.Referrers() {
 			walkToDetectSpannerFunc(pass, referrer)
 		}
+	// Walk pointed value to pointer when the instruction relates to a pointer
+	case *ssa.Store:
+		// TODO: Type assertion or else branch may be changed when we analyze across packages.
+		if addr, ok := v.Addr.(ssa.Instruction); ok {
+			walkToDetectSpannerFunc(pass, addr)
+		} else {
+			return
+		}
+	case *ssa.FieldAddr:
+		for _, referrer := range *v.X.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.IndexAddr:
+		for _, referrer := range *v.X.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
 	}
 }
 
