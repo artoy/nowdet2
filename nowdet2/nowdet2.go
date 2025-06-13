@@ -74,17 +74,7 @@ func walkToDetectSpannerFunc(pass *analysis.Pass, instr ssa.Instruction) {
 				walkToDetectSpannerFunc(pass, referrer)
 			}
 		}
-	case *ssa.Phi:
-		// In case of Phi, it is not certain that the value is used in the function but may be used.
-		for _, referrer := range *v.Referrers() {
-			walkToDetectSpannerFunc(pass, referrer)
-		}
-	case *ssa.BinOp:
-		// In case of BinOp, it is not certain that the value is used in the function but may be used.
-		for _, referrer := range *v.Referrers() {
-			walkToDetectSpannerFunc(pass, referrer)
-		}
-	// Walk pointed value to pointer when the instruction relates to a pointer
+	// Walk pointed value to pointer when the instructions relate to a pointer
 	case *ssa.Store:
 		// TODO: Type assertion or else branch may be changed when we analyze across packages.
 		if addr, ok := v.Addr.(ssa.Instruction); ok {
@@ -98,6 +88,47 @@ func walkToDetectSpannerFunc(pass *analysis.Pass, instr ssa.Instruction) {
 		}
 	case *ssa.IndexAddr:
 		for _, referrer := range *v.X.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	// Following cases are trivial
+	case *ssa.Alloc:
+		return
+	case *ssa.UnOp:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.ChangeType:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.Convert:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.MultiConvert:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.ChangeInterface:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.SliceToArrayPointer:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.MakeInterface:
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.Phi:
+		// In case of Phi, it is not certain that the value is used in the function but may be used.
+		for _, referrer := range *v.Referrers() {
+			walkToDetectSpannerFunc(pass, referrer)
+		}
+	case *ssa.BinOp:
+		// In case of BinOp, it is not certain that the value is used in the function but may be used.
+		for _, referrer := range *v.Referrers() {
 			walkToDetectSpannerFunc(pass, referrer)
 		}
 	}
