@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"slices"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/buildssa"
@@ -156,6 +157,11 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 		for _, referrer := range *v.Referrers() {
 			walkInstructions(pass, referrer)
 		}
+	case *ssa.Slice:
+		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
+		for _, referrer := range *v.Referrers() {
+			walkInstructions(pass, referrer)
+		}
 	case *ssa.Field:
 		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
 		for _, referrer := range *v.Referrers() {
@@ -207,21 +213,15 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 		}
 	}
 
-	// Do nothing in the case of *ssa.Alloc, MakeClosure, MakeMap, Return, RunDefers, Panic, Go, Defer, and DebugRef.
+	// Do nothing in the case of *ssa.Alloc, MakeClosure, MakeMap, MakeChan, MakeSlice, Return, RunDefers, Panic, Go, Defer, and DebugRef.
 }
 
 // isSpannerFunction checks if the given function is a Spanner-related function
 func isSpannerFunction(fn *ssa.Function) bool {
-	if fn.Pkg == nil {
+	if fn.Pkg == nil || fn.Pkg.Pkg == nil {
 		return false
 	}
 
 	pkgPath := fn.Pkg.Pkg.Path()
-
-	// Check for common Spanner package paths
-	spannerPkgs := []string{
-		"cloud.google.com/go/spanner",
-	}
-
-	return slices.Contains(spannerPkgs, pkgPath)
+	return strings.Contains(pkgPath, "cloud.google.com/go/spanner")
 }
