@@ -23,6 +23,13 @@ var Analyzer = &analysis.Analyzer{
 
 const Doc = "nowdet2 is a static analysis tool that detects time.now() in arguments of functions about Spanner."
 
+var checked []ssa.Instruction
+
+type defineRegisterInstruction interface {
+	Referrers() *[]ssa.Instruction
+	Name() string
+}
+
 func run(pass *analysis.Pass) (any, error) {
 	// SSA dumping
 	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
@@ -65,9 +72,6 @@ func posTimeNow(pass *analysis.Pass) []*ssa.Call {
 	return timeNows
 }
 
-var checked []ssa.Instruction
-
-// walkInstructions walks through the SSA graph to detect Spanner functions that use a value from time.Now
 func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 	// Check that the instruction has not been checked yet to avoid infinite recursion
 	if slices.Contains(checked, instr) {
@@ -85,10 +89,9 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 			if isSpannerFunction(fn) {
 				fmt.Println("Spanner function found:", fn.Name())
 				pass.Reportf(v.Pos(), "%s may use an argument that is a value from time.Now()", fn.String())
+				return
 			}
 		}
-
-		// Walk through the referrers
 		for _, referrer := range *v.Referrers() {
 			walkInstructions(pass, referrer)
 		}
@@ -111,96 +114,7 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 			walkInstructions(pass, referrer)
 		}
 
-	// Following cases are trivial
-	case *ssa.Phi:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.BinOp:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.UnOp:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.ChangeType:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Convert:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.MultiConvert:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.ChangeInterface:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.SliceToArrayPointer:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.MakeInterface:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Slice:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Field:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Lookup:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		// Of course, this is a conservative checking.
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Select:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		// TODO: Now, we cannot ensure to detect time.Now().
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Range:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		// Of course, this is a conservative checking.
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Next:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		// TODO: Now, we cannot ensure to detect time.Now().
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.TypeAssert:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
-	case *ssa.Extract:
-		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
-		for _, referrer := range *v.Referrers() {
-			walkInstructions(pass, referrer)
-		}
+	// Cases not to define a new register but we should walk.
 	case *ssa.Send:
 		fmt.Printf("Checking %s: %s\n", reflect.TypeOf(v), v)
 		for _, referrer := range *v.Chan.Referrers() {
@@ -208,12 +122,18 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 		}
 	case *ssa.MapUpdate:
 		fmt.Printf("Checking %s: %s\n", reflect.TypeOf(v), v)
+		for _, referrer := range *v.Map.Referrers() {
+			walkInstructions(pass, referrer)
+		}
+
+	// Following cases are trivial - use defineRegisterInstruction interface.
+	// Do nothing in the case of *ssa.Alloc, MakeClosure, MakeMap, MakeChan, MakeSlice, Return, RunDefers, Panic, Go, Defer, and DebugRef but maybe we don't need to walk.
+	case defineRegisterInstruction:
+		fmt.Printf("Checking %s: %s = %s\n", reflect.TypeOf(v), v.Name(), v)
 		for _, referrer := range *v.Referrers() {
 			walkInstructions(pass, referrer)
 		}
 	}
-
-	// Do nothing in the case of *ssa.Alloc, MakeClosure, MakeMap, MakeChan, MakeSlice, Return, RunDefers, Panic, Go, Defer, and DebugRef.
 }
 
 // isSpannerFunction checks if the given function is a Spanner-related function

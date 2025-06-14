@@ -15,7 +15,7 @@ func insert(ctx context.Context, client *spanner.Client, isNow bool) error {
 		now = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	}
 
-	_, err := client.Apply(ctx, []*spanner.Mutation{ // want `Apply may use an argument that is a value from time.Now()`
+	_, err := client.Apply(ctx, []*spanner.Mutation{
 		spanner.Insert( // want `Insert may use an argument that is a value from time.Now()`
 			"Users",
 			[]string{"name", "created_at"},
