@@ -92,6 +92,8 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 				return
 			}
 		}
+
+		// TODO: should not walk referrers but inside of call.
 		for _, referrer := range *v.Referrers() {
 			walkInstructions(pass, referrer)
 		}
@@ -114,6 +116,14 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 			walkInstructions(pass, referrer)
 		}
 
+	// Walk caller side.
+	case *ssa.Return:
+		fmt.Printf("Checking %s: %s\n", reflect.TypeOf(v), v)
+		callers := findCaller(pass, v.Parent())
+		for _, caller := range callers {
+			walkInstructions(pass, caller)
+		}
+
 	// Cases not to define a new register but we should walk.
 	case *ssa.Send:
 		fmt.Printf("Checking %s: %s\n", reflect.TypeOf(v), v)
@@ -134,6 +144,26 @@ func walkInstructions(pass *analysis.Pass, instr ssa.Instruction) {
 			walkInstructions(pass, referrer)
 		}
 	}
+}
+
+// findCaller finds all calls to the given function in the SSA representation
+func findCaller(pass *analysis.Pass, fn *ssa.Function) []*ssa.Call {
+	calls := make([]*ssa.Call, 0)
+
+	funcs := pass.ResultOf[buildssa.Analyzer].(*buildssa.SSA).SrcFuncs
+	for _, f := range funcs {
+		for _, block := range f.Blocks {
+			for _, instr := range block.Instrs {
+				if call, ok := instr.(*ssa.Call); ok {
+					if call.Call.Value == fn {
+						calls = append(calls, call)
+					}
+				}
+			}
+		}
+	}
+
+	return calls
 }
 
 // isSpannerFunction checks if the given function is a Spanner-related function
