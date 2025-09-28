@@ -1,4 +1,4 @@
-package simple
+package single_func
 
 import (
 	"context"
